@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const Create = () => {
@@ -19,30 +18,54 @@ const Create = () => {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
 
+        // 1. Convert Tech Stack string to an Array
         const techArray = job.postTechStack.split(',').map(item => item.trim());
 
+        // 2. Handle Number safely - Convert empty strings to 0
+        const expValue = job.reqExperience.trim() === '' ? '0' : job.reqExperience;
+        const expNumber = parseInt(expValue);
+        const finalExp = isNaN(expNumber) ? 0 : expNumber;
+
+        // 3. Build the JSON Object (Matching Java Model perfectly)
         const newJob = {
             postProfile: job.postProfile,
             postDesc: job.postDesc,
-            reqExperience: parseInt(job.reqExperience),
+            reqExperience: finalExp,
             postTechStack: techArray
         };
 
-        console.log('Sending:', newJob); // Check what's being sent
+        console.log("SENDING TO JAVA:", JSON.stringify(newJob, null, 2));
 
-        axios.post('http://localhost:8080/jobposts', newJob)
-            .then(() => {
-                setSubmitting(false);
-                navigate('/');
-            })
-            .catch(error => {
-                console.error('Error:', error.response?.data || error.message);
-                setSubmitting(false);
+        try {
+            const response = await fetch('http://localhost:8080/jobposts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newJob)
             });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log("Java Response:", result);
+                alert(`SUCCESS: "${result.postProfile}" posted successfully!`);
+                navigate('/');
+            } else {
+                // Read the exact error from Java
+                const errorText = await response.text();
+                console.error("Java Rejected:", errorText);
+                alert(`Java Rejected Data: ${errorText}`);
+            }
+        } catch (error) {
+            console.error("Network Error:", error);
+            alert(`Network Error: ${error.message}`);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
